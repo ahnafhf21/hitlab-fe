@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Todo List</title>
+</head>
+
+<body>
+    <button id="fetch-data" onclick="getAllDataFetch()">Get All Data</button>
+
+    <hr>
+    <input type="text" name="title" id="title" placeholder="Title">
+    <input type="text" name="description" id="description" placeholder="Description">
+    <button id="submit-todo" onclick="submitTodoFetch()">Submit</button>
+    <button id="cancel-edit" onclick="cancelEdit()" style="display: none;">Cancel</button> <!-- Cancel button -->
+    <h1>Todo List</h1>
+    <ul id="todo-lists"></ul>
+
+    <script>
+        let editingTodoId = null;
+
+        async function getAllDataFetch() {
+            const ul = document.getElementById('todo-lists');
+            ul.innerHTML = '';
+
+            const url = 'http://127.0.0.1:5000/api/todos';
+
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error('Network response was not ok ' + response.statusText);
+                }
+                const data = await response.json();
+                
+                data.forEach(dat => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `
+                        <strong>${dat.title}</strong> - ${dat.description}
+                        <button onclick="deleteTodoFetch(${dat.id})">Delete</button>
+                        <button onclick="editTodoFetch(${dat.id}, '${dat.title}', '${dat.description}')">Edit</button>
+                    `;
+                    ul.appendChild(li);
+                });
+            } catch (error) {
+                console.error('Fetch error:', error);
+            }
+        }
+
+        async function deleteTodoFetch(id) {
+            const url = `http://127.0.0.1:5000/api/todos/${id}`;
+            try {
+                const response = await fetch(url, {
+                    method: 'DELETE'
+                });
+                if (!response.ok) {
+                    throw new Error('Network response was not ok ' + response.statusText);
+                }
+                console.log(`Todo with ID ${id} deleted`);
+                getAllDataFetch();
+            } catch (error) {
+                console.error('Delete error:', error);
+            }
+        }
+
+        function editTodoFetch(id, title, description) {
+            document.getElementById('title').value = title;
+            document.getElementById('description').value = description;
+            editingTodoId = id;
+
+            // Update form for editing mode
+            document.getElementById('submit-todo').textContent = 'Update Todo';
+            document.getElementById('cancel-edit').style.display = 'inline'; // Show cancel button
+        }
+
+        function cancelEdit() {
+            // Reset form to add mode
+            document.getElementById('title').value = '';
+            document.getElementById('description').value = '';
+            editingTodoId = null;
+
+            document.getElementById('submit-todo').textContent = 'Submit'; // Revert button text
+            document.getElementById('cancel-edit').style.display = 'none'; // Hide cancel button
+        }
+
+        async function submitTodoFetch() {
+            const inputTitle = document.getElementById('title');
+            const inputDescription = document.getElementById('description');
+            const url = editingTodoId ? `http://127.0.0.1:5000/api/todos/${editingTodoId}` : 'http://127.0.0.1:5000/api/todos';
+            const method = editingTodoId ? 'PUT' : 'POST';
+            
+            const body = {
+                title: inputTitle.value,
+                description: inputDescription.value
+            };
+
+            try {
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(body)
+                });
+                if (!response.ok) {
+                    throw new Error(`Server error: ${response.status}`);
+                }
+                const responseData = await response.json();
+                console.log("Submit response:", responseData);
+
+                // Clear the form and reset editing ID
+                cancelEdit();
+
+                // Refresh the todo list
+                getAllDataFetch();
+            } catch (error) {
+                console.error("Error submitting todo:", error);
+            }
+        }
+    </script>
+</body>
+
+</html>
